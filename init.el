@@ -17,11 +17,20 @@
   (defun display-startup-echo-area-message ()
     (message "")))
 
+;; (push '(fullscreen . maximized) default-frame-alist)
+(add-to-list 'default-frame-alist '(fullscreen . maximized)) 
+(add-to-list 'default-frame-alist '(ns-transparent-titlebar . t))
+(add-to-list 'default-frame-alist '(font . "Roboto Mono 12")) 
+
 ;;.. General convenience
 (use-package emacs
   :init
   (defalias 'yes-or-no-p 'y-or-n-p)
 	(global-set-key (kbd "<escape>") 'keyboard-escape-quit))
+(savehist-mode t)
+;; Activate recent file mode, and save every ten minutes.
+(recentf-mode t)
+(run-at-time nil 600 'recentf-save-list)
 
 ;;.. Locale / UTF8
 (use-package emacs
@@ -148,6 +157,10 @@
 (setq org-html-head-extra "<link rel=\"stylesheet\" type=\"text/css\" href=\"https://gongzhitaao.org/orgcss/org.css\"/>")
 (setq org-html-head-include-default-style nil)
 
+;;.. Export via pandoc
+(use-package ox-pandoc
+  :after org
+  :ensure t)
 
 ;;. Outlining
 
@@ -324,7 +337,7 @@
 ;;   :config (treemacs-set-scope-type 'Tabs))
 
 
-;;. Activate a nice theme
+;;. Theme
 (use-package doom-themes
   :ensure t
   :config
@@ -390,12 +403,18 @@
     (load-theme theme t t)))
 
 ;;(load-themes cycle-themes-theme-list)
-;; Prefer brighter comments
+;;Prefer brighter comments
 (setq doom-peacock-brighter-comments t
       doom-peacock-comment-bg nil)
 (load-themes '(doom-peacock))
 
-(set-frame-font "Roboto Mono 14" nil t)
+(use-package catppuccin-theme
+  :ensure t)
+;; (load-theme 'catppuccin :no-confirm)
+;; (setq catppuccin-flavor 'macchiato) ;; 'latte, 'frappe, 'macchiato or 'mocha
+;; (catppuccin-reload)
+;; (set-frame-font "Roboto Mono 12" nil t)
+
 
 (use-package doom-modeline
   :ensure t
@@ -428,6 +447,9 @@
     "r" '(restart-emacs :which-key "restart emacs")
     "i" '((lambda () (interactive) (find-file user-init-file)) :which-key "open init file")
     "s" 'consult-line
+    "f r" 'consult-recent-file
+    "f f" 'find-file
+    "c" 'consult-flymake
 
     ;; Buffer
     "b" '(:ignore t :which-key "buffer")
@@ -671,6 +693,14 @@
 )
 
 ;;. Magit
+;;.. diff-hl: Git diffs
+(use-package diff-hl
+  :init
+  (add-hook 'magit-pre-refresh-hook 'diff-hl-magit-pre-refresh)
+  (add-hook 'magit-post-refresh-hook 'diff-hl-magit-post-refresh)
+  :config
+  (global-diff-hl-mode))
+
 ;;.. Magit
 (use-package magit
   :general
@@ -682,45 +712,10 @@
   (general-nmap
     "<escape>" #'transient-quit-one))
 
-;;.. diff-hl: Git diffs
-(use-package diff-hl
-  :init
-  (add-hook 'magit-pre-refresh-hook 'diff-hl-magit-pre-refresh)
-  (add-hook 'magit-post-refresh-hook 'diff-hl-magit-post-refresh)
-  :config
-  (global-diff-hl-mode))
-
-;;. LSP and languages
-(use-package lsp-mode
-  :init
-  ;; set prefix for lsp-command-keymap (few alternatives - "C-l", "C-c l")
-  (setq lsp-keymap-prefix "C-c l")
-  :hook (;; replace XXX-mode with concrete major-mode(e. g. python-mode)
-         (rustic-mode . lsp)
-         ;; if you want which-key integration
-         (lsp-mode . lsp-enable-which-key-integration))
-  :commands lsp)
-(use-package lsp-ui
-  :commands lsp-ui-mode)
-(add-to-list 'load-path (expand-file-name "lib/lsp-mode" user-emacs-directory))
-(add-to-list 'load-path (expand-file-name "lib/lsp-mode/clients" user-emacs-directory))
-
-(use-package lsp-pyright
-  :ensure t
-  :hook (python-mode . (lambda ()
-                          (require 'lsp-pyright)
-                          (lsp))))  ; or lsp-deferred
-
-
-;;. ESS
-(use-package ess
-  :ensure t
-  :init (require 'ess-site))
-
-
 ;;. PDF tools
 (use-package pdf-tools
   :ensure t
+  :after (evil)
   :pin manual ;; manually update
   :mode ("\\.pdf\\'" . pdf-view-mode)
   :config
@@ -730,3 +725,83 @@
   (setq-default pdf-view-display-size 'fit-page)
   ;; automatically annotate highlights
   (setq pdf-annot-activate-created-annotations t))
+
+(general-def pdf-view-mode-map
+  "M-n" 'pdf-view-next-page
+  "M-p" 'pdf-view-previous-page)
+
+;; Open PDFs in emacs mode
+(evil-set-initial-state 'pdf-view-mode 'emacs)
+(add-hook 'pdf-view-mode-hook
+  (lambda ()
+    (set (make-local-variable 'evil-emacs-state-cursor) (list nil)))
+  (blink-cursor-mode -1))
+;;. Smartparens
+(defun my-enable-evil-move-beyond-eol ()
+  (setq-local evil-move-beyond-eol t))
+
+(defun my-disable-evil-move-beyond-eol ()
+  (setq-local evil-move-beyond-eol nil))
+
+(use-package smartparens
+  :ensure t
+  :defer t
+  :init
+  :bind (:map smartparens-mode-map
+              ("C-M-f" . sp-forward-sexp)
+              ("C-M-b" . sp-backward-sexp)
+              ("C-M-u" . sp-backward-up-sexp)
+              ("C-M-d" . sp-down-sexp)
+              ("C-M-a" . sp-backward-down-sexp)
+              ("C-M-e" . sp-up-sexp)
+              ("C-M-s" . sp-splice-sexp)
+              ("M-(" . sp-wrap-round)
+              ("M-[" . sp-wrap-square)
+              ("M-{" . sp-wrap-curly)
+              ("<M-delete>" . sp-unwrap-sexp)
+              ("<M-backspace>" . sp-backward-unwrap-sexp)
+              ("s-<right>" . sp-forward-slurp-sexp)
+              ("s-<left>" . sp-forward-barf-sexp)
+              ("M-<left>" . sp-backward-slurp-sexp)
+              ("M-<right>" . sp-backward-barf-sexp))
+  :config
+  (add-hook 'smartparens-enabled-hook #'my-enable-evil-move-beyond-eol)
+  (add-hook 'smartparens-disabled-hook #'my-disable-evil-move-beyond-eol))
+
+;;.. Sly
+(use-package sly
+  :ensure t)
+
+(setq sly-lisp-implementations
+      '((sbcl ("sbcl" "--dynamic-space-size 4096"))))
+
+;;.. ESS
+(use-package ess
+  :ensure t
+  :init (require 'ess-site))
+
+
+;;. LSP and languages
+(use-package lsp-mode
+  :init
+  ;; set prefix for lsp-command-keymap (few alternatives - "C-l", "C-c l")
+  (setq lsp-keymap-prefix "C-c l")
+  :hook (;; replace XXX-mode with concrete major-mode(e. g. python-mode)
+         (rustic-mode . lsp)
+         (ess-r-mode . lsp)
+         ;; if you want which-key integration
+         (lsp-mode . lsp-enable-which-key-integration))
+  :commands lsp)
+
+(use-package lsp-ui
+  :commands lsp-ui-mode)
+(add-to-list 'load-path (expand-file-name "lib/lsp-mode" user-emacs-directory))
+(add-to-list 'load-path (expand-file-name "lib/lsp-mode/clients" user-emacs-directory))
+
+;;.. Python
+(use-package lsp-pyright
+  :ensure t
+  :hook (python-mode . (lambda ()
+                          (require 'lsp-pyright)
+                          (lsp))))  ; or lsp-deferred
+
