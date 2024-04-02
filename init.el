@@ -403,7 +403,7 @@
     (load-theme theme t t)))
 
 ;;(load-themes cycle-themes-theme-list)
-;;Prefer brighter comments
+;; Prefer brighter comments
 (setq doom-peacock-brighter-comments t
       doom-peacock-comment-bg nil)
 (load-themes '(doom-peacock))
@@ -779,6 +779,11 @@
 (use-package ess
   :ensure t
   :init (require 'ess-site))
+
+
+;;. Shell (vterm)
+(use-package vterm
+  :ensure t)
 
 
 ;;. LSP and languages
