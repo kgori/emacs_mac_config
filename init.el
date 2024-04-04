@@ -50,6 +50,7 @@
   :init
   (setq-default indent-tabs-mode nil)
   (setq-default tab-width 2))
+(add-hook 'prog-mode-hook 'display-line-numbers-mode)
 
 ;;.. MacOS compatibility
 ;; MacOS keybinds
@@ -99,6 +100,8 @@
          ("M-b" . citar-insert-preset))
   :custom
   (citar-bibliography '("~/bib/paperpile.bib")))
+
+(use-package org-journal)
 
 ;; My Org Roam setup I was using before with Doom
 (setq org-directory "~/org/")
@@ -212,6 +215,10 @@
   :config
   (evil-lion-mode))
 
+;;.. Fix the insert cursor in the terminal in evil mode
+(unless window-system
+  (progn (add-hook 'evil-insert-state-entry-hook (lambda () (send-string-to-terminal "\033[5 q")))
+         (add-hook 'evil-insert-state-exit-hook  (lambda () (send-string-to-terminal "\033[2 q")))))
 
 ;;. Treemacs
 ;; This is a full-featured example config from the github readme. Most of these config options
@@ -768,19 +775,6 @@
   (add-hook 'smartparens-enabled-hook #'my-enable-evil-move-beyond-eol)
   (add-hook 'smartparens-disabled-hook #'my-disable-evil-move-beyond-eol))
 
-;;.. Sly
-(use-package sly
-  :ensure t)
-
-(setq sly-lisp-implementations
-      '((sbcl ("sbcl" "--dynamic-space-size 4096"))))
-
-;;.. ESS
-(use-package ess
-  :ensure t
-  :init (require 'ess-site))
-
-
 ;;. Shell (vterm)
 (use-package vterm
   :ensure t)
@@ -810,3 +804,57 @@
                           (require 'lsp-pyright)
                           (lsp))))  ; or lsp-deferred
 
+
+;;.. Sly
+(use-package sly
+  :ensure t)
+
+(setq sly-lisp-implementations
+      '((sbcl ("sbcl" "--dynamic-space-size 4096"))))
+
+
+;;.. ESS
+(use-package ess
+  :ensure t
+  :init (require 'ess-site))
+
+
+;;. Copilot
+(use-package copilot
+  :straight (:repo "copilot-emacs/copilot.el" :host github :files ("*.el" "dist"))
+  :hook (prog-mode . copilot-mode)
+  :bind (("C-\\" . 'copilot-accept-completion-by-word)
+         ("C-;" . 'copilot-accept-completion-by-line)
+         ("M-;" . 'copilot-accept-completion)
+         ("M-s-]" . 'copilot-next-completion)
+         ("M-s-[" . 'copilot-previous-completion)
+         :map copilot-completion-map))
+
+
+;;. Remote R session
+;; From https://stackoverflow.com/a/22703777
+;; Allow emacs to connect to persistent R sessions running remotely
+;; 1: Separately to emacs, ssh onto the farm
+;; 2: Launch a shell using dtach:
+;;    dtach -A .dtach-(session-name) $SHELL
+;; 3: Launch an interactive R jobs from this shell:
+;;    bsubmem MMMM -Is R (--no-readline) [optionally now use C-\ to detach]
+;; 4: In emacs, run M-x R-remote to connect to the session
+(defvar R-remote-host "farm5")
+(defvar R-remote-session "R")
+(defvar R-remote-directory "~")
+(defun R-remote (&optional remote-host session directory)
+  "Connect to the remote-host's dtach session running R."
+  (interactive (list
+                (read-from-minibuffer "R remote host: " R-remote-host)
+                (read-from-minibuffer "R remote session: " R-remote-session)
+                (read-from-minibuffer "R remote directory: " R-remote-directory)))
+  (pop-to-buffer (make-comint (concat "remote-" session)
+                              "ssh" nil "-t" "-t" remote-host
+                              "cd" directory ";"
+                              "/nfs/dog_n_devil/kevin/gentoo/usr/bin/dtach" "-A" (concat ".dtach-" session)
+                              "-z" "-E" "-r" "none"
+                              inferior-R-program-name "--no-readline"
+                              inferior-R-args))
+  (ess-remote (process-name (get-buffer-process (current-buffer))) "R")
+  (setq comint-process-echoes t))
