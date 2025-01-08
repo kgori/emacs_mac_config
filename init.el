@@ -1,9 +1,4 @@
 ;; -*- lexical-binding: t; -*-
-;;. Add init lisp scripts folder to load path  
-(add-to-list 
-  'load-path
-  (expand-file-name "package_inits" user-emacs-directory))
-
 ;;. Emacs settings
 ;; General convenient settings for emacs
 
@@ -132,9 +127,14 @@
 
 ;; Org Roam capture template
 (setq org-roam-capture-templates '(("d" "default" plain "%?"
-     :target (file+head "${slug}.org.gpg"
+     :target (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
                         "#+title: ${title}\n")
      :unnarrowed t)))
+(add-to-list 'org-roam-capture-templates
+             '("e" "encrypted" plain "%?"
+               :target (file+head "${slug}.org.gpg"
+                                  "#+title: ${title}\n")
+               :unnarrowed t))
 (add-to-list 'org-roam-capture-templates
                '("l" "latex-ready" plain "%?" :target
                   (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+LATEX_CLASS_OPTIONS: [12pt]
@@ -149,6 +149,9 @@
 ")
                 :unnarrowed t))
 
+;; Add file tag properties to vertico display and search
+(setq org-roam-node-display-template (concat "${title:*} " (propertize "${tags:50}" 'face 'org-tag)))
+
 ;; Set calendar start of the week to Monday
 (setq calendar-week-start-day 1)
 
@@ -160,6 +163,12 @@
 (setq org-html-head-extra "<link rel=\"stylesheet\" type=\"text/css\" href=\"https://gongzhitaao.org/orgcss/org.css\"/>")
 (setq org-html-head-include-default-style nil)
 
+;; Select languages to activate in org-babel
+(org-babel-do-load-languages
+ 'org-babel-load-languages
+ '((emacs-lisp . t)))
+
+
 ;;.. Export via pandoc
 (use-package ox-pandoc
   :after org
@@ -170,7 +179,7 @@
 ;;.. outli
 (use-package outli
   :straight (:host github :repo "jdtsmith/outli")
-  ;:after lispy ; uncomment only if you use lispy; it also sets speed keys on headers!
+  ;; :after lispy ; uncomment only if you use lispy; it also sets speed keys on headers!
   :hook ((prog-mode text-mode conf-space-mode
                     conf-xdefaults-mode conf-unix-mode
                     tex-mode yaml-mode) . outli-mode)
@@ -204,16 +213,22 @@
   :init (setq evil-want-keybinding nil)
   :config (evil-mode 1))
 
+;; evil-collection: Expands evil mode into subsystems, e.g. M-x calendar
 (use-package evil-collection
   :after (evil)
   :demand
   :config
   (evil-collection-init))
 
+;; evil-lion: For aligning text in columns
+;; gl MOTION CHAR (left align selection within 'motion' using 'char' as anchor)
+;; gL MOTION CHAR (right align...)
 (use-package evil-lion
   :ensure t
   :config
   (evil-lion-mode))
+
+(evil-set-undo-system 'undo-redo)
 
 ;;.. Fix the insert cursor in the terminal in evil mode
 (unless window-system
@@ -462,7 +477,11 @@
     "b" '(:ignore t :which-key "buffer")
     ;; Don't show an error because SPC b ESC is undefined, just abort
     "b <escape>" '(keyboard-escape-quit :which-key t)
-    "bd"  'kill-current-buffer))
+    "bd"  'kill-current-buffer
+    
+    ;; Comment line
+    "/" '((lambda (n) (interactive "p") (save-excursion (comment-line n))) :which-key "comment line"))
+  )
 
 ;; Which key, shows what keys do
 (use-package which-key
@@ -472,6 +491,21 @@
   :config
   (which-key-mode))
 
+;;.. Window switching with ace-window
+(evil-define-key 'normal global-map (kbd "C-p") 'ace-window)
+(evil-define-key 'visual global-map (kbd "C-p") 'ace-window)
+(evil-define-key 'insert global-map (kbd "C-p") 'ace-window)
+
+(defun my-vterm-mode-setup ()
+  "Set up keybindings to work in vterm mode"
+  (evil-define-key 'normal vterm-mode-map (kbd "C-p") 'ace-window)
+  (evil-define-key 'visual vterm-mode-map (kbd "C-p") 'ace-window)
+  (evil-define-key 'insert vterm-mode-map (kbd "C-p") 'ace-window)
+  (define-key vterm-mode-map (kbd "C-p") 'ace-window))
+
+(add-hook 'vterm-mode-hook 'my-vterm-mode-setup)
+(global-set-key (kbd "C-p") 'ace-window)
+  
 
 ;;. All the Icons
 (use-package all-the-icons
@@ -493,7 +527,8 @@
    "M-A" 'marginalia-cycle)
   :custom
   (marginalia-max-relative-age 0)
-  (marginalia-align 'right)
+  (marginalia-align 'left)
+  
   :init
   (marginalia-mode))
 
@@ -743,28 +778,58 @@
   (lambda ()
     (set (make-local-variable 'evil-emacs-state-cursor) (list nil)))
   (blink-cursor-mode -1))
+
+;;. Evil Lispy
+;; (use-package lispy
+;;   :hook
+;;   (lisp-mode . lispy-mode)
+;;   (emacs-lisp-mode . lispy-mode))
+
+;; (use-package lispyville
+;;   :hook
+;;   (lispy-mode . lispyville-mode)
+;;   :init
+;;   (general-add-hook '(emacs-lisp-mode-hook lisp-mode-hook) #'lispyville-mode)
+;;   :config (lispyville-set-key-theme
+;;            '((operators normal)
+;;              c-w
+;;              (prettify-insert)
+;;              (atom-movement t)
+;;              slurp/barf-lispy
+;;              additional
+;;              additional-insert)))
+
+(use-package rainbow-delimiters
+  :ensure t
+  :hook
+  (lisp-mode . rainbow-delimiters-mode))
+
 ;;. Smartparens
+;;.. Smartparens setup
 (defun my-enable-evil-move-beyond-eol ()
   (setq-local evil-move-beyond-eol t))
 
 (defun my-disable-evil-move-beyond-eol ()
-  (setq-local evil-move-beyond-eol nil))
+  (setq-local evil-move-beyond-eol nil));
 
 (use-package smartparens
   :ensure t
   :defer t
   :init
   :bind (:map smartparens-mode-map
-              ("C-M-f" . sp-forward-sexp)
-              ("C-M-b" . sp-backward-sexp)
-              ("C-M-u" . sp-backward-up-sexp)
-              ("C-M-d" . sp-down-sexp)
-              ("C-M-a" . sp-backward-down-sexp)
+              ("C-M-f" . forward-sexp)
+              ("C-M-b" . backward-sexp)
               ("C-M-e" . sp-up-sexp)
+              ("C-M-d" . sp-down-sexp)
+              ("C-M-u" . sp-backward-up-sexp)
+              ("C-M-a" . sp-backward-down-sexp)
+              ("C-M-t" . sp-transpose-sexp)
               ("C-M-s" . sp-splice-sexp)
               ("M-(" . sp-wrap-round)
               ("M-[" . sp-wrap-square)
               ("M-{" . sp-wrap-curly)
+              ("C-M-<backspace>" . sp-backward-kill-sexp)
+              ("C-M-<delete>" . sp-kill-sexp)
               ("<M-delete>" . sp-unwrap-sexp)
               ("<M-backspace>" . sp-backward-unwrap-sexp)
               ("s-<right>" . sp-forward-slurp-sexp)
@@ -773,7 +838,45 @@
               ("M-<right>" . sp-backward-barf-sexp))
   :config
   (add-hook 'smartparens-enabled-hook #'my-enable-evil-move-beyond-eol)
-  (add-hook 'smartparens-disabled-hook #'my-disable-evil-move-beyond-eol))
+  (add-hook 'smartparens-disabled-hook #'my-disable-evil-move-beyond-eol)
+  :hook
+  (lisp-mode . smartparens-mode)
+  (emacs-lisp-mode . smartparens-mode)
+  (clojure-mode . smartparens-mode))
+
+;;.. Custom Smartparens functions
+(defun sp-custom/drag-preceding-sexp-backward ()
+  "Moves the preceding form towards the start of the list.
+   Place the point at the end of the form you want to move."
+  (interactive)
+  (transpose-sexps -1))
+
+(defun sp-custom/drag-preceding-sexp-forward ()
+  "Moves the preceding form towards the start of the list. (Same as transpose-sexps)
+   Place the point at the end of the form you want to move."
+  (interactive)
+  (transpose-sexps 1))
+
+(defun sp-custom/drag-sexp-forward ()
+  "Moves the following form towards the end of the list.
+   Place the point at the start of the form you want to move."
+  (interactive)
+  (forward-sexp)
+  (transpose-sexps 1)
+  (backward-sexp))
+
+(defun sp-custom/drag-sexp-backward ()
+  "Moves the following form towards the start of the list.
+   Place the point at the start of the form you want to move."
+  (interactive)
+  (transpose-sexps 1)
+  (backward-sexp 2))
+
+(define-key smartparens-mode-map (kbd "C-M-t") 'sp-custom/drag-preceding-sexp-forward)
+(define-key smartparens-mode-map (kbd "C-M-s-t") 'sp-custom/drag-preceding-sexp-backward)
+(define-key smartparens-mode-map (kbd "C-M-y") 'sp-custom/drag-sexp-forward)
+(define-key smartparens-mode-map (kbd "C-M-s-y") 'sp-custom/drag-sexp-backward)
+
 
 ;;. Shell (vterm)
 (use-package vterm
@@ -781,42 +884,155 @@
 
 
 ;;. LSP and languages
-(use-package lsp-mode
-  :init
-  ;; set prefix for lsp-command-keymap (few alternatives - "C-l", "C-c l")
-  (setq lsp-keymap-prefix "C-c l")
-  :hook (;; replace XXX-mode with concrete major-mode(e. g. python-mode)
-         (rustic-mode . lsp)
-         (ess-r-mode . lsp)
-         ;; if you want which-key integration
-         (lsp-mode . lsp-enable-which-key-integration))
-  :commands lsp)
+(use-package eglot
+  :config
+  (define-key eglot-mode-map
+              (kbd "C-c C-t") #'eldoc-print-current-symbol-info)
+  :hook
+  ((tuareg-mode . eglot-ensure)))
+  ;; :config
+  ;; (add-to-list 'eglot-server-programs '(rust-mode . ("rust-analyzer"))))
 
-(use-package lsp-ui
-  :commands lsp-ui-mode)
-(add-to-list 'load-path (expand-file-name "lib/lsp-mode" user-emacs-directory))
-(add-to-list 'load-path (expand-file-name "lib/lsp-mode/clients" user-emacs-directory))
+(use-package tree-sitter
+  :ensure t
+  :config
+  (global-tree-sitter-mode)
+  (add-hook 'tree-sitter-after-on-hook #'tree-sitter-hl-mode))
+
+(setq treesit-language-source-alist
+  '((bash "https://github.com/tree-sitter/tree-sitter-bash")
+    (c "https://github.com/tree-sitter/tree-sitter-c")
+    (cmake "https://github.com/uyha/tree-sitter-cmake")
+    (common-lisp "https://github.com/theHamsta/tree-sitter-commonlisp")
+    (cpp "https://github.com/tree-sitter/tree-sitter-cpp")
+    (css "https://github.com/tree-sitter/tree-sitter-css")
+    (csharp "https://github.com/tree-sitter/tree-sitter-c-sharp")
+    (elisp "https://github.com/Wilfred/tree-sitter-elisp")
+    (go "https://github.com/tree-sitter/tree-sitter-go")
+    (go-mod "https://github.com/camdencheek/tree-sitter-go-mod")
+    (html "https://github.com/tree-sitter/tree-sitter-html")
+    (js . ("https://github.com/tree-sitter/tree-sitter-javascript" "master" "src"))
+    (json "https://github.com/tree-sitter/tree-sitter-json")
+    (lua "https://github.com/Azganoth/tree-sitter-lua")
+    (make "https://github.com/alemuller/tree-sitter-make")
+    (markdown "https://github.com/ikatyang/tree-sitter-markdown")
+    (python "https://github.com/tree-sitter/tree-sitter-python")
+    (r "https://github.com/r-lib/tree-sitter-r")
+    (rust "https://github.com/tree-sitter/tree-sitter-rust")
+    (toml "https://github.com/tree-sitter/tree-sitter-toml")
+    (tsx . ("https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src"))
+    (typescript . ("https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src"))
+    (yaml "https://github.com/ikatyang/tree-sitter-yaml")))
 
 ;;.. Python
-(use-package lsp-pyright
-  :ensure t
-  :hook (python-mode . (lambda ()
-                          (require 'lsp-pyright)
-                          (lsp))))  ; or lsp-deferred
+(use-package python-mode
+  :ensure nil
+  :hook
+  (python-mode . eglot-ensure)
+  :custom
+  (python-shell-interpreter "python3"))
+
+(use-package micromamba
+  :straight t)
+
+
+;;.. Elixir
+(use-package elixir-ts-mode
+  :ensure t)
 
 
 ;;.. Sly
+(load (expand-file-name "~/.roswell/helper.el"))
+
 (use-package sly
-  :ensure t)
+  :defer t
+  :config
+  (setf sly-lisp-implementations
+        '((sbcl ("sbcl" "--dynamic-space-size 4096") :coding-system utf-8-unix)
+          (roswell ("ros" "-Q" "run")  :coding-system utf-8-unix)
+          (ccl ("ros" "-Q" "run" "-L" "ccl-bin"))))
+  (setf sly-default-lisp 'roswell))
 
-(setq sly-lisp-implementations
-      '((sbcl ("sbcl" "--dynamic-space-size 4096"))))
 
+; slime setup
+;(use-package slime
+;  :init
+;  (load (expand-file-name "~/quicklisp/slime-helper.el"))
+;  (setq inferior-lisp-program "sbcl")
+;  :config
+;  (setq slime-lisp-implementations
+;	'((sbcl  ("sbcl" "--dynamic-space-size" "4096") :coding-system utf-8-unix)
+;	  (ccl   ("ccl64")))
+;  slime-setup '(slime-fancy slime-quicklisp slime-asdf slime-mrepl)
+;	slime-net-coding-system 'utf-8-unix
+;	slime-export-save-file t
+;	slime-contribs '(slime-fancy slime-repl slime-scratch slime-trace-dialog)
+;	lisp-simple-loop-indentation  1
+;	lisp-loop-keyword-indentation 6
+;	lisp-loop-forms-indentation   6)
+;  (show-paren-mode 1))
 
 ;;.. ESS
 (use-package ess
   :ensure t
   :init (require 'ess-site))
+
+
+;;.. Ocaml
+(use-package tuareg
+  :ensure t
+  :mode (("\\.ocamlinit\\'" . tuareg-mode)))
+
+(use-package merlin
+  :ensure t
+  :config
+  (add-hook 'tuareg-mode-hook #'merlin-mode))
+
+(use-package utop
+  :ensure t
+  :config
+  (add-hook 'tuareg-mode-hook #'utop-minor-mode))
+
+
+;;.. Rust
+(use-package rust-mode
+  :ensure nil
+  :hook
+  (rust-mode . eglot-ensure)
+  :init
+  (setq rust-mode-treesitter-derive t))
+
+(use-package flymake-clippy
+  :hook
+  (rust-mode . flymake-clippy-setup-backend))
+
+
+;;.. Racket
+(use-package racket-mode
+  :ensure t
+  :defer
+  :mode "\\.rkt\\'")
+
+(use-package sicp
+  :ensure t)
+
+(use-package ob-racket
+  :after org
+  :config (add-hook 'ob-racket-pre-runtime-library-load-hook
+                    #'ob-racket-raco-make-runtime-library)
+  :straight (:host github :repo "hasu/emacs-ob-racket")
+  :ensure t)
+
+(org-babel-do-load-languages
+ 'org-babel-load-languages
+ '((racket . t)))
+
+
+;;. Breadcrumb mode
+(use-package breadcrumb
+  :ensure t
+  :config
+  (breadcrumb-mode 1))
 
 
 ;;. Copilot
@@ -840,7 +1056,7 @@
 ;; 3: Launch an interactive R jobs from this shell:
 ;;    bsubmem MMMM -Is R (--no-readline) [optionally now use C-\ to detach]
 ;; 4: In emacs, run M-x R-remote to connect to the session
-(defvar R-remote-host "farm5")
+(defvar R-remote-host "farm22")
 (defvar R-remote-session "R")
 (defvar R-remote-directory "~")
 (defun R-remote (&optional remote-host session directory)
@@ -858,3 +1074,9 @@
                               inferior-R-args))
   (ess-remote (process-name (get-buffer-process (current-buffer))) "R")
   (setq comint-process-echoes t))
+
+;;. Tramp
+(setq tramp-verbose 6)
+(setq tramp-debug-buffer t)
+(setq tramp-debug-to-file t)
+(add-to-list 'tramp-remote-path 'tramp-own-remote-path)
