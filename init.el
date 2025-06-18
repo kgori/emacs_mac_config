@@ -88,7 +88,7 @@
 (setq package-enable-at-startup nil)
 
 (straight-use-package 'use-package)
-(straight-use-package 'org)
+(straight-use-package '(org :type built-in))
 (setq straight-use-package-by-default t)
 (setq use-package-always-defer t)
 
@@ -175,15 +175,15 @@
 (setq org-html-head-include-default-style nil)
 
 ;; Select languages to activate in org-babel
-(org-babel-do-load-languages
- 'org-babel-load-languages
- '((emacs-lisp . t)))
-
+(with-eval-after-load 'org
+  (org-babel-do-load-languages
+   'org-babel-load-languages
+   '((racket . t)
+     (emacs-lisp . t))))
 
 ;;.. Export via pandoc
 (use-package ox-pandoc
-  :after org
-  :ensure t)
+  :after org)
 
 ;;. Outlining
 
@@ -235,7 +235,6 @@
 ;; gl MOTION CHAR (left align selection within 'motion' using 'char' as anchor)
 ;; gL MOTION CHAR (right align...)
 (use-package evil-lion
-  :ensure t
   :config
   (evil-lion-mode))
 
@@ -250,7 +249,6 @@
 ;; This is a full-featured example config from the github readme. Most of these config options
 ;; are defaults.
 (use-package treemacs
-  :ensure t
   :defer t
   :init
   (with-eval-after-load 'winum
@@ -339,40 +337,32 @@
         ("C-x t M-t" . treemacs-find-tag)))
 
 (use-package treemacs-evil
-  :after (treemacs evil)
-  :ensure t)
+  :after (treemacs evil))
 
 (use-package treemacs-nerd-icons
   :after (treemacs nerd-icons)
-  :ensure t
   :config
   (treemacs-load-theme "nerd-icons"))
 ;; (use-package treemacs-projectile
-;;   :after (treemacs projectile)
-;;   :ensure t)
+;;   :after (treemacs projectile))
 
 (use-package treemacs-icons-dired
-  :hook (dired-mode . treemacs-icons-dired-enable-once)
-  :ensure t)
+  :hook (dired-mode . treemacs-icons-dired-enable-once))
 
 (use-package treemacs-magit
-  :after (treemacs magit)
-  :ensure t)
+  :after (treemacs magit))
 
 ;; (use-package treemacs-persp ;;treemacs-perspective if you use perspective.el vs. persp-mode
 ;;   :after (treemacs persp-mode) ;;or perspective vs. persp-mode
-;;   :ensure t
 ;;   :config (treemacs-set-scope-type 'Perspectives))
 
 ;; (use-package treemacs-tab-bar ;;treemacs-tab-bar if you use tab-bar-mode
 ;;   :after (treemacs)
-;;   :ensure t
 ;;   :config (treemacs-set-scope-type 'Tabs))
 
 
 ;;. Theme
 (use-package doom-themes
-  :ensure t
   :config
   ;; Global settings (defaults)
   (setq doom-themes-enable-bold t    ; if nil, bold is universally disabled
@@ -387,8 +377,7 @@
   ;; Corrects (and improves) org-mode's native fontification.
   (doom-themes-org-config))
 
-(use-package ef-themes
-  :ensure t)
+(use-package ef-themes)
 
 ;; (setq cycle-themes-theme-list
 ;;               '(doom-material
@@ -441,16 +430,8 @@
       doom-peacock-comment-bg nil)
 (load-themes '(doom-peacock))
 
-(use-package catppuccin-theme
-  :ensure t)
-;; (load-theme 'catppuccin :no-confirm)
-;; (setq catppuccin-flavor 'macchiato) ;; 'latte, 'frappe, 'macchiato or 'mocha
-;; (catppuccin-reload)
-;; (set-frame-font "Roboto Mono 12" nil t)
-
 
 (use-package doom-modeline
-  :ensure t
   :init (doom-modeline-mode 1))
 
 
@@ -781,9 +762,8 @@
 
 ;;. PDF tools
 (use-package pdf-tools
-  :ensure t
   :after (evil)
-  :pin manual ;; manually update
+  ;; :pin manual ;; manually update
   :mode ("\\.pdf\\'" . pdf-view-mode)
   :config
   ;; initialise
@@ -807,7 +787,6 @@
 
 ;;. Rainbow delimiters
 (use-package rainbow-delimiters
-  :ensure t
   :hook
   (lisp-mode . rainbow-delimiters-mode))
 
@@ -850,7 +829,6 @@
   (setq-local evil-move-beyond-eol nil))
 
 (use-package smartparens
-  :ensure t
   :defer t
   :init
   :bind (:map smartparens-mode-map
@@ -873,16 +851,49 @@
               ("s-<left>" . sp-forward-barf-sexp)
               ("M-<left>" . sp-backward-slurp-sexp)
               ("M-<right>" . sp-backward-barf-sexp))
-  :config
-  (add-hook 'smartparens-enabled-hook #'my-enable-evil-move-beyond-eol)
-  (add-hook 'smartparens-disabled-hook #'my-disable-evil-move-beyond-eol)
   :hook
   (lisp-mode . smartparens-mode)
   (emacs-lisp-mode . smartparens-mode)
-  (clojure-mode . smartparens-mode))
+  (clojure-mode . smartparens-mode)
+  :config
+  (add-hook 'smartparens-enabled-hook #'my-enable-evil-move-beyond-eol)
+  (add-hook 'smartparens-disabled-hook #'my-disable-evil-move-beyond-eol)
+
+  ;;.. Custom Smartparens functions
+  (defun sp-custom/drag-preceding-sexp-backward ()
+    "Moves the preceding form towards the start of the list.
+     Place the point at the end of the form you want to move."
+    (interactive)
+    (transpose-sexps -1))
+
+  (defun sp-custom/drag-preceding-sexp-forward ()
+    "Moves the preceding form towards the start of the list. (Same as transpose-sexps)
+     Place the point at the end of the form you want to move."
+    (interactive)
+    (transpose-sexps 1))
+
+  (defun sp-custom/drag-sexp-forward ()
+    "Moves the following form towards the end of the list.
+     Place the point at the start of the form you want to move."
+    (interactive)
+    (forward-sexp)
+    (transpose-sexps 1)
+    (backward-sexp))
+
+  (defun sp-custom/drag-sexp-backward ()
+    "Moves the following form towards the start of the list.
+     Place the point at the start of the form you want to move."
+    (interactive)
+    (transpose-sexps 1)
+    (backward-sexp 2))
+
+  (define-key smartparens-mode-map (kbd "C-M-t") 'sp-custom/drag-preceding-sexp-forward)
+  (define-key smartparens-mode-map (kbd "C-M-s-t") 'sp-custom/drag-preceding-sexp-backward)
+  (define-key smartparens-mode-map (kbd "C-M-y") 'sp-custom/drag-sexp-forward)
+  (define-key smartparens-mode-map (kbd "C-M-s-y") 'sp-custom/drag-sexp-backward))
+  
 
 ;; (use-package paredit
-;;   :ensure t
 ;;   :defer t
 ;;   :init
 ;;   (add-hook 'emacs-lisp-mode-hook 'paredit-mode)
@@ -890,43 +901,8 @@
 ;;   :config
 ;;   (define-key paredit-mode-map (kbd "C-c k") 'paredit-copy-as-kill))
 
-
-;;.. Custom Smartparens functions
-(defun sp-custom/drag-preceding-sexp-backward ()
-  "Moves the preceding form towards the start of the list.
-   Place the point at the end of the form you want to move."
-  (interactive)
-  (transpose-sexps -1))
-
-(defun sp-custom/drag-preceding-sexp-forward ()
-  "Moves the preceding form towards the start of the list. (Same as transpose-sexps)
-   Place the point at the end of the form you want to move."
-  (interactive)
-  (transpose-sexps 1))
-
-(defun sp-custom/drag-sexp-forward ()
-  "Moves the following form towards the end of the list.
-   Place the point at the start of the form you want to move."
-  (interactive)
-  (forward-sexp)
-  (transpose-sexps 1)
-  (backward-sexp))
-
-(defun sp-custom/drag-sexp-backward ()
-  "Moves the following form towards the start of the list.
-   Place the point at the start of the form you want to move."
-  (interactive)
-  (transpose-sexps 1)
-  (backward-sexp 2))
-
-(define-key smartparens-mode-map (kbd "C-M-t") 'sp-custom/drag-preceding-sexp-forward)
-(define-key smartparens-mode-map (kbd "C-M-s-t") 'sp-custom/drag-preceding-sexp-backward)
-(define-key smartparens-mode-map (kbd "C-M-y") 'sp-custom/drag-sexp-forward)
-(define-key smartparens-mode-map (kbd "C-M-s-y") 'sp-custom/drag-sexp-backward)
-
 ;;. Lispy
 ;; (use-package lispy
-;;   :ensure t
 ;;   :hook
 ;;   (emacs-lisp-mode . lispy-mode)
 ;;   (lisp-mode . lispy-mode)
@@ -945,7 +921,6 @@
 ;;   (setq lispy-close-quotes-at-end-p t))
 
 ;; (use-package lispyville
-;;   :ensure t
 ;;   :hook
 ;;   (lispy-mode . lispyville-mode)
 ;;   :config
@@ -959,8 +934,7 @@
 ;;      additional-insert)))
 
 ;;. Shell (vterm)
-(use-package vterm
-  :ensure t)
+(use-package vterm)
 
 
 ;;. LSP and languages
@@ -974,7 +948,6 @@
   ;; (add-to-list 'eglot-server-programs '(rust-mode . ("rust-analyzer"))))
 
 (use-package tree-sitter
-  :ensure t
   :config
   (global-tree-sitter-mode)
   (add-hook 'tree-sitter-after-on-hook #'tree-sitter-hl-mode))
@@ -1006,7 +979,7 @@
 
 ;;.. Python
 (use-package python-mode
-  :ensure nil
+  :straight nil
   :hook
   (python-mode . eglot-ensure)
   :custom
@@ -1017,8 +990,7 @@
 
 
 ;;.. Elixir
-(use-package elixir-ts-mode
-  :ensure t)
+(use-package elixir-ts-mode)
 
 
 ;;.. Sly
@@ -1036,29 +1008,24 @@
 
 ;;.. ESS
 (use-package ess
-  :ensure t
   :init (require 'ess-site))
 
 
 ;;.. Ocaml
 (use-package tuareg
-  :ensure t
   :mode (("\\.ocamlinit\\'" . tuareg-mode)))
 
 (use-package merlin
-  :ensure t
   :config
   (add-hook 'tuareg-mode-hook #'merlin-mode))
 
 (use-package utop
-  :ensure t
   :config
   (add-hook 'tuareg-mode-hook #'utop-minor-mode))
 
 
 ;;.. Rust
 (use-package rust-mode
-  :ensure nil
   :hook
   (rust-mode . eglot-ensure)
   :init
@@ -1071,40 +1038,30 @@
 
 ;;.. Racket
 (use-package racket-mode
-  :ensure t
   :defer
   :mode "\\.rkt\\'")
 
-(use-package sicp
-  :ensure t)
+(use-package sicp)
 
 (use-package ob-racket
-  :after org
+  :after (org racket-mode)
   :config (add-hook 'ob-racket-pre-runtime-library-load-hook
                     #'ob-racket-raco-make-runtime-library)
-  :straight (:host github :repo "hasu/emacs-ob-racket")
-  :ensure t)
-
-(org-babel-do-load-languages
- 'org-babel-load-languages
- '((racket . t)))
+  :straight (:host github :repo "hasu/emacs-ob-racket"))
 
 
 ;;.. Clojure
 (use-package clojure-mode
-  :ensure t
   :defer
   :mode "\\.clj\\'")
 
 (use-package cider
-  :ensure t
   :defer
   :hook
   (clojure-mode . cider-mode))
 
 ;;. Breadcrumb mode
 (use-package breadcrumb
-  :ensure t
   :config
   (breadcrumb-mode 1))
 
@@ -1118,7 +1075,10 @@
          ("M-;" . 'copilot-accept-completion)
          ("M-s-]" . 'copilot-next-completion)
          ("M-s-[" . 'copilot-previous-completion)
-         :map copilot-completion-map))
+         :map copilot-completion-map)
+  :config
+  ;; Automatically install Copilot server if missing
+  (copilot-install-server))
 
 (use-package copilot-chat
   :straight (:host github :repo "chep/copilot-chat.el" :files ("*.el"))
@@ -1156,4 +1116,5 @@
 (setq tramp-verbose 6)
 (setq tramp-debug-buffer t)
 (setq tramp-debug-to-file t)
-(add-to-list 'tramp-remote-path 'tramp-own-remote-path)
+(with-eval-after-load 'tramp
+  (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
