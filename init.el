@@ -21,11 +21,22 @@
 (use-package emacs
   :init
   (defalias 'yes-or-no-p 'y-or-n-p)
-	(global-set-key (kbd "<escape>") 'keyboard-escape-quit))
+  (global-set-key (kbd "<escape>") 'keyboard-escape-quit))
 (savehist-mode t)
 ;; Activate recent file mode, and save every ten minutes.
 (recentf-mode t)
 (run-at-time nil 600 'recentf-save-list)
+
+;;.. Backup files
+(setq backup-directory-alist `(("." . "~/.emacs_backups"))
+      backup-by-copying t
+      version-control t
+      delete-old-versions t
+      kept-new-versions 6
+      kept-old-versions 2
+      auto-save-default t
+      auto-save-timeout 20
+      auto-save-interval 200)
 
 ;;.. Locale / UTF8
 (use-package emacs
@@ -51,11 +62,11 @@
 ;; MacOS keybinds
 (use-package emacs
   :init
-	(when (eq system-type 'darwin)
-		(setq mac-command-modifier 'super)
-		(setq mac-option-modifier 'meta)
-		(setq mac-control-modifier 'control)
-		(setq ns-right-alternate-modifier (quote none))))
+  (when (eq system-type 'darwin)
+    (setq mac-command-modifier 'super)
+    (setq mac-option-modifier 'meta)
+    (setq mac-control-modifier 'control)
+    (setq ns-right-alternate-modifier (quote none))))
 
 ;;. Straight.el
 (defvar bootstrap-version)
@@ -127,9 +138,9 @@
 
 ;; Org Roam capture template
 (setq org-roam-capture-templates '(("d" "default" plain "%?"
-     :target (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
-                        "#+title: ${title}\n")
-     :unnarrowed t)))
+                                    :target (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                                                       "#+title: ${title}\n")
+                                    :unnarrowed t)))
 (add-to-list 'org-roam-capture-templates
              '("e" "encrypted" plain "%?"
                :target (file+head "${slug}.org.gpg"
@@ -147,7 +158,7 @@
 #+title: ${title}
 #+filetags: %^g
 ")
-                :unnarrowed t))
+                 :unnarrowed t))
 
 ;; Add file tag properties to vertico display and search
 (setq org-roam-node-display-template (concat "${title:*} " (propertize "${tags:50}" 'face 'org-tag)))
@@ -442,11 +453,32 @@
   :ensure t
   :init (doom-modeline-mode 1))
 
+
+;;. Nerd icons
 (use-package nerd-icons)
 
 (use-package nerd-icons-dired
   :hook
   (dired-mode . nerd-icons-dired-mode))
+
+(use-package nerd-icons-completion
+  :after marginalia
+  :config (nerd-icons-completion-mode)
+  (add-hook 'marginalia-mode-hook #'nerd-icons-completion-marginalia-setup))
+
+
+;;. All the Icons
+(use-package all-the-icons
+  :if (display-graphic-p)
+  :config
+  (unless (member "all-the-icons" (font-family-list))
+    (all-the-icons-install-fonts t)))
+
+(use-package all-the-icons-completion
+  :after (marginalia all-the-icons)
+  :hook (marginalia-mode . all-the-icons-completion-marginalia-setup)
+  :init
+  (all-the-icons-completion-mode))
 
 
 ;;. Key bindings and leader keys
@@ -464,6 +496,10 @@
     :prefix "SPC"
     :global-prefix "C-SPC")
 
+  (general-define-key
+   :keymaps 'ess-r-mode-map
+   "C-c C-d" 'ess-eval-line-and-step)
+
   (leader-keys
     "x" '(execute-extended-command :which-key "execute command")
     "r" '(restart-emacs :which-key "restart emacs")
@@ -480,8 +516,8 @@
     "bd"  'kill-current-buffer
     
     ;; Comment line
-    "/" '((lambda (n) (interactive "p") (save-excursion (comment-line n))) :which-key "comment line"))
-  )
+    "/" '((lambda (n) (interactive "p") (save-excursion (comment-line n))) :which-key "comment line")))
+  
 
 ;; Which key, shows what keys do
 (use-package which-key
@@ -507,18 +543,6 @@
 (global-set-key (kbd "C-p") 'ace-window)
   
 
-;;. All the Icons
-(use-package all-the-icons
-  :if (display-graphic-p)
-  :config
-  (unless (member "all-the-icons" (font-family-list))
-    (all-the-icons-install-fonts t)))
-
-(use-package all-the-icons-completion
-  :after (marginalia all-the-icons)
-  :hook (marginalia-mode . all-the-icons-completion-marginalia-setup)
-  :init
-  (all-the-icons-completion-mode))
 ;;. Minibuffer
 ;;.. Marginalia
 (use-package marginalia
@@ -546,12 +570,12 @@
                                 vertico-reverse
                                 vertico-directory
                                 vertico-multiform
-                                vertico-unobtrusive
-                                ))
+                                vertico-unobtrusive))
+                                
   :general
   (:keymaps '(normal insert visual motion)
-   "M-." #'vertico-repeat
-   )
+   "M-." #'vertico-repeat)
+   
   (:keymaps 'vertico-map
    "<tab>" #'vertico-insert ; Set manually otherwise setting `vertico-quick-insert' overrides this
    "?" #'minibuffer-completion-help
@@ -569,11 +593,11 @@
    "M-F" #'vertico-multiform-flat
    "M-R" #'vertico-multiform-reverse
    "M-U" #'vertico-multiform-unobtrusive
-   "C-l" #'kb/vertico-multiform-flat-toggle
-   )
+   "C-l" #'kb/vertico-multiform-flat-toggle)
+   
   :hook ((rfn-eshadow-update-overlay . vertico-directory-tidy) ; Clean up file path when typing
-         (minibuffer-setup . vertico-repeat-save) ; Make sure vertico state is saved
-         )
+         (minibuffer-setup . vertico-repeat-save)) ; Make sure vertico state is saved
+         
   :custom
   (vertico-count 10)
   (vertico-resize nil)
@@ -589,15 +613,15 @@
      (imenu buffer)
      (library  indexed)
      (org-roam-node indexed)
-     (t reverse)
-     ))
+     (t reverse)))
+     
   (vertico-multiform-commands
    '(("flyspell-correct-*" grid reverse)
      (org-refile grid reverse indexed)
      (consult-yank-pop indexed)
      (consult-flycheck)
-     (consult-lsp-diagnostics)
-     ))
+     (consult-lsp-diagnostics)))
+     
   :init
   (defun kb/vertico-multiform-flat-toggle ()
     "Toggle between flat and reverse."
@@ -722,7 +746,7 @@
   ;; completion functions takes precedence over the global list.
   (add-to-list 'completion-at-point-functions #'cape-dabbrev)
   (add-to-list 'completion-at-point-functions #'cape-file)
-  (add-to-list 'completion-at-point-functions #'cape-elisp-block)
+  (add-to-list 'completion-at-point-functions #'cape-elisp-block))
   ;;(add-to-list 'completion-at-point-functions #'cape-history)
   ;;(add-to-list 'completion-at-point-functions #'cape-keyword)
   ;;(add-to-list 'completion-at-point-functions #'cape-tex)
@@ -732,7 +756,7 @@
   ;;(add-to-list 'completion-at-point-functions #'cape-dict)
   ;;(add-to-list 'completion-at-point-functions #'cape-elisp-symbol)
   ;;(add-to-list 'completion-at-point-functions #'cape-line)
-)
+
 
 ;;. Magit
 ;;.. diff-hl: Git diffs
@@ -753,6 +777,7 @@
     "g l" '(magit-log :which-key "log"))
   (general-nmap
     "<escape>" #'transient-quit-one))
+
 
 ;;. PDF tools
 (use-package pdf-tools
@@ -779,30 +804,42 @@
     (set (make-local-variable 'evil-emacs-state-cursor) (list nil)))
   (blink-cursor-mode -1))
 
-;;. Evil Lispy
-;; (use-package lispy
-;;   :hook
-;;   (lisp-mode . lispy-mode)
-;;   (emacs-lisp-mode . lispy-mode))
 
-;; (use-package lispyville
-;;   :hook
-;;   (lispy-mode . lispyville-mode)
-;;   :init
-;;   (general-add-hook '(emacs-lisp-mode-hook lisp-mode-hook) #'lispyville-mode)
-;;   :config (lispyville-set-key-theme
-;;            '((operators normal)
-;;              c-w
-;;              (prettify-insert)
-;;              (atom-movement t)
-;;              slurp/barf-lispy
-;;              additional
-;;              additional-insert)))
-
+;;. Rainbow delimiters
 (use-package rainbow-delimiters
   :ensure t
   :hook
   (lisp-mode . rainbow-delimiters-mode))
+
+
+;;. Parinfer
+(use-package parinfer-rust-mode
+  :hook ((emacs-lisp-mode . parinfer-rust-mode)
+         (clojure-mode . parinfer-rust-mode)
+         (common-lisp-mode . parinfer-rust-mode)
+         (scheme-mode . parinfer-rust-mode)
+         (lisp-mode . parinfer-rust-mode)
+         (racket-mode . parinfer-rust-mode)
+         (racket-repl-mode . parinfer-rust-mode))
+  :init
+  (setq parinfer-rust-auto-download nil)
+  :config
+  (define-key parinfer-rust-mode-map (kbd "C-c C-n") 'custom-parinfer/cycle-modes))
+
+(defun custom-parinfer/cycle-modes ()
+  "Cycles through the parinfer modes: paren -> indent -> smart (-> paren...)" 
+    (interactive)
+    (cond
+     ((string= parinfer-rust--mode "paren")
+      (message "Switching to indent mode")
+      (parinfer-rust--switch-mode "indent"))
+     ((string= parinfer-rust--mode "indent")
+      (message "Switching to smart mode")
+      (parinfer-rust--switch-mode "smart"))
+     (t
+      (message "Switching to paren mode")
+      (parinfer-rust--switch-mode "paren"))))
+
 
 ;;. Smartparens
 ;;.. Smartparens setup
@@ -810,7 +847,7 @@
   (setq-local evil-move-beyond-eol t))
 
 (defun my-disable-evil-move-beyond-eol ()
-  (setq-local evil-move-beyond-eol nil));
+  (setq-local evil-move-beyond-eol nil))
 
 (use-package smartparens
   :ensure t
@@ -825,13 +862,13 @@
               ("C-M-a" . sp-backward-down-sexp)
               ("C-M-t" . sp-transpose-sexp)
               ("C-M-s" . sp-splice-sexp)
-              ("M-(" . sp-wrap-round)
-              ("M-[" . sp-wrap-square)
-              ("M-{" . sp-wrap-curly)
+              ("C-c (" . sp-wrap-round)
+              ("C-c [" . sp-wrap-square)
+              ("C-c {" . sp-wrap-curly)
               ("C-M-<backspace>" . sp-backward-kill-sexp)
               ("C-M-<delete>" . sp-kill-sexp)
-              ("<M-delete>" . sp-unwrap-sexp)
               ("<M-backspace>" . sp-backward-unwrap-sexp)
+              ("<M-delete>" . sp-unwrap-sexp)
               ("s-<right>" . sp-forward-slurp-sexp)
               ("s-<left>" . sp-forward-barf-sexp)
               ("M-<left>" . sp-backward-slurp-sexp)
@@ -843,6 +880,16 @@
   (lisp-mode . smartparens-mode)
   (emacs-lisp-mode . smartparens-mode)
   (clojure-mode . smartparens-mode))
+
+;; (use-package paredit
+;;   :ensure t
+;;   :defer t
+;;   :init
+;;   (add-hook 'emacs-lisp-mode-hook 'paredit-mode)
+;;   (add-hook 'clojure-mode-hook 'paredit-mode)
+;;   :config
+;;   (define-key paredit-mode-map (kbd "C-c k") 'paredit-copy-as-kill))
+
 
 ;;.. Custom Smartparens functions
 (defun sp-custom/drag-preceding-sexp-backward ()
@@ -877,6 +924,39 @@
 (define-key smartparens-mode-map (kbd "C-M-y") 'sp-custom/drag-sexp-forward)
 (define-key smartparens-mode-map (kbd "C-M-s-y") 'sp-custom/drag-sexp-backward)
 
+;;. Lispy
+;; (use-package lispy
+;;   :ensure t
+;;   :hook
+;;   (emacs-lisp-mode . lispy-mode)
+;;   (lisp-mode . lispy-mode)
+;;   (scheme-mode . lispy-mode)
+;;   (racket-mode . lispy-mode)
+;;   (clojure-mode . lispy-mode)
+;;   (clojurescript-mode . lispy-mode)
+;;   (clojurec-mode . lispy-mode)
+;;   (hy-mode . lispy-mode)
+;;   (lfe-mode . lispy-mode)
+;;   (scheme-mode . lispy-mode)
+;;   (lisp-mode . lispy-mode)
+;;   (ielm-mode . lispy-mode)
+;;   (eval-expression-minibuffer-setup . lispy-mode)
+;;   :config
+;;   (setq lispy-close-quotes-at-end-p t))
+
+;; (use-package lispyville
+;;   :ensure t
+;;   :hook
+;;   (lispy-mode . lispyville-mode)
+;;   :config
+;;   (lispyville-set-key-theme
+;;    '((operators normal)
+;;      c-w
+;;      (prettify insert)
+;;      (atom-movement normal visual)
+;;      slurp/barf-lispy
+;;      additional
+;;      additional-insert)))
 
 ;;. Shell (vterm)
 (use-package vterm
@@ -954,24 +1034,6 @@
   (setf sly-default-lisp 'roswell))
 
 
-; slime setup
-;(use-package slime
-;  :init
-;  (load (expand-file-name "~/quicklisp/slime-helper.el"))
-;  (setq inferior-lisp-program "sbcl")
-;  :config
-;  (setq slime-lisp-implementations
-;	'((sbcl  ("sbcl" "--dynamic-space-size" "4096") :coding-system utf-8-unix)
-;	  (ccl   ("ccl64")))
-;  slime-setup '(slime-fancy slime-quicklisp slime-asdf slime-mrepl)
-;	slime-net-coding-system 'utf-8-unix
-;	slime-export-save-file t
-;	slime-contribs '(slime-fancy slime-repl slime-scratch slime-trace-dialog)
-;	lisp-simple-loop-indentation  1
-;	lisp-loop-keyword-indentation 6
-;	lisp-loop-forms-indentation   6)
-;  (show-paren-mode 1))
-
 ;;.. ESS
 (use-package ess
   :ensure t
@@ -1028,6 +1090,18 @@
  '((racket . t)))
 
 
+;;.. Clojure
+(use-package clojure-mode
+  :ensure t
+  :defer
+  :mode "\\.clj\\'")
+
+(use-package cider
+  :ensure t
+  :defer
+  :hook
+  (clojure-mode . cider-mode))
+
 ;;. Breadcrumb mode
 (use-package breadcrumb
   :ensure t
@@ -1046,6 +1120,9 @@
          ("M-s-[" . 'copilot-previous-completion)
          :map copilot-completion-map))
 
+(use-package copilot-chat
+  :straight (:host github :repo "chep/copilot-chat.el" :files ("*.el"))
+  :after (request org markdown-mode))
 
 ;;. Remote R session
 ;; From https://stackoverflow.com/a/22703777
