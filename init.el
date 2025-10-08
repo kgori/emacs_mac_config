@@ -2,30 +2,51 @@
 ;;. Emacs settings
 ;; General convenient settings for emacs
 
-;;.. Tidy up initial messages
+;;.. Emacs set up
 (use-package emacs
   :init
+;;... disable the splash screen
   (setq initial-scratch-message nil)
-  ; disable the splash screen
   (setq inhibit-startup-message t)
   (setq ring-bell-function 'ignore)
   (defun display-startup-echo-area-message ()
-    (message "")))
+    (message ""))
+  (defalias 'yes-or-no-p 'y-or-n-p)
+  (global-set-key (kbd "<escape>") 'keyboard-escape-quit)
+;;... Tabs vs spaces
+  (setq-default indent-tabs-mode nil)
+  (setq-default tab-width 2)
+;;... Locale
+  (set-charset-priority 'unicode)
+  (setq locale-coding-system 'utf-8
+        coding-system-for-read 'utf-8
+        coding-system-for-write 'utf-8)
+  (set-terminal-coding-system 'utf-8)
+  (set-keyboard-coding-system 'utf-8)
+  (set-selection-coding-system 'utf-8)
+  (prefer-coding-system 'utf-8)
+  (setq default-process-coding-system '(utf-8-unix . utf-8-unix))
+;;... MacOS keybinds
+  (when (eq system-type 'darwin)
+    (setq mac-command-modifier 'super)
+    (setq mac-option-modifier 'meta)
+    (setq mac-control-modifier 'control)
+    (setq ns-right-alternate-modifier (quote none))))
 
-;; (push '(fullscreen . maximized) default-frame-alist)
-(add-to-list 'default-frame-alist '(fullscreen . maximized)) 
-(add-to-list 'default-frame-alist '(ns-transparent-titlebar . t))
-(add-to-list 'default-frame-alist '(font . "Roboto Mono 12")) 
+;;.. GUI full-screen setup
+(if (display-graphic-p)
+  (add-to-list 'default-frame-alist '(fullscreen . maximized))
+  (add-to-list 'default-frame-alist '(ns-transparent-titlebar . t))
+  (add-to-list 'default-frame-alist '(font . "Roboto Mono 12")))
 
 ;;.. General convenience
-(use-package emacs
-  :init
-  (defalias 'yes-or-no-p 'y-or-n-p)
-  (global-set-key (kbd "<escape>") 'keyboard-escape-quit))
 (savehist-mode t)
 ;; Activate recent file mode, and save every ten minutes.
 (recentf-mode t)
 (run-at-time nil 600 'recentf-save-list)
+
+;;.. Line numbers in prog mode
+(add-hook 'prog-mode-hook 'display-line-numbers-mode)
 
 ;;.. Backup files
 (setq backup-directory-alist `(("." . "~/.emacs_backups"))
@@ -37,36 +58,6 @@
       auto-save-default t
       auto-save-timeout 20
       auto-save-interval 200)
-
-;;.. Locale / UTF8
-(use-package emacs
-  :init
-  (set-charset-priority 'unicode)
-  (setq locale-coding-system 'utf-8
-        coding-system-for-read 'utf-8
-        coding-system-for-write 'utf-8)
-  (set-terminal-coding-system 'utf-8)
-  (set-keyboard-coding-system 'utf-8)
-  (set-selection-coding-system 'utf-8)
-  (prefer-coding-system 'utf-8)
-  (setq default-process-coding-system '(utf-8-unix . utf-8-unix)))
-
-;;.. Tabs vs Spaces
-(use-package emacs
-  :init
-  (setq-default indent-tabs-mode nil)
-  (setq-default tab-width 2))
-(add-hook 'prog-mode-hook 'display-line-numbers-mode)
-
-;;.. MacOS compatibility
-;; MacOS keybinds
-(use-package emacs
-  :init
-  (when (eq system-type 'darwin)
-    (setq mac-command-modifier 'super)
-    (setq mac-option-modifier 'meta)
-    (setq mac-control-modifier 'control)
-    (setq ns-right-alternate-modifier (quote none))))
 
 ;;. Straight.el
 (defvar bootstrap-version)
@@ -107,6 +98,21 @@
   :custom
   (citar-bibliography '("~/bib/paperpile.bib")))
 
+;;.. Customise AUCTeX and stop it intercepting .el files
+(use-package auctex
+  :defer t
+  :config
+  (setq TeX-command-default "LatexMk")
+  (add-to-list 'TeX-command-list
+               '("LatexMk" "latexmk -pdf %s" TeX-run-TeX nil t
+                 :help "Run latexmk"))
+  (when (boundp 'TeX-file-extensions)
+    (setq TeX-file-extensions
+          (remove "el" TeX-file-extensions))))
+
+(add-to-list 'auto-mode-alist
+ '("\\.el\\'" . emacs-lisp-mode))
+
 (use-package org-journal)
 
 ;; My Org Roam setup I was using before with Doom
@@ -137,18 +143,19 @@
            ; #'variable-pitch-mode)
 
 ;; Org Roam capture template
-(setq org-roam-capture-templates '(("d" "default" plain "%?"
-                                    :target (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
-                                                       "#+title: ${title}\n")
-                                    :unnarrowed t)))
+(setq org-roam-capture-templates
+  '(("d" "default" plain "%?"
+     :target (file+head "%<%Y%m%d%H%M%S>-${slug}.org"
+                        "#+title: ${title}\n")
+     :unnarrowed t)))
 (add-to-list 'org-roam-capture-templates
              '("e" "encrypted" plain "%?"
                :target (file+head "${slug}.org.gpg"
                                   "#+title: ${title}\n")
                :unnarrowed t))
 (add-to-list 'org-roam-capture-templates
-               '("l" "latex-ready" plain "%?" :target
-                  (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+LATEX_CLASS_OPTIONS: [12pt]
+             '("l" "latex-ready" plain "%?"
+               :target (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+LATEX_CLASS_OPTIONS: [12pt]
 #+LATEX_HEADER: \\PassOptionsToPackage{style=nature}{biblatex}
 #+LATEX_HEADER: \\usepackage[natbib=true,backend=biber]{biblatex} \\addbibresource{~/bib/paperpile.bib}
 #+LATEX_HEADER: \\hypersetup{colorlinks,linkcolor=red,citecolor=blue,urlcolor=blue}
@@ -158,7 +165,7 @@
 #+title: ${title}
 #+filetags: %^g
 ")
-                 :unnarrowed t))
+               :unnarrowed t))
 
 ;; Add file tag properties to vertico display and search
 (setq org-roam-node-display-template (concat "${title:*} " (propertize "${tags:50}" 'face 'org-tag)))
@@ -166,15 +173,10 @@
 ;; Set calendar start of the week to Monday
 (setq calendar-week-start-day 1)
 
-; (add-hook 'org-mode-hook #'mixed-pitch-mode)
-; (add-hook 'org-mode-hook #'solaire-mode)
-
-; (add-hook 'mixed-pitch-mode-hook #'solaire-mode-reset)
-
 (setq org-html-head-extra "<link rel=\"stylesheet\" type=\"text/css\" href=\"https://gongzhitaao.org/orgcss/org.css\"/>")
 (setq org-html-head-include-default-style nil)
 
-;; Select languages to activate in org-babel
+;;.. Select languages to activate in org-babel
 (with-eval-after-load 'org
   (org-babel-do-load-languages
    'org-babel-load-languages
@@ -244,6 +246,11 @@
 (unless window-system
   (progn (add-hook 'evil-insert-state-entry-hook (lambda () (send-string-to-terminal "\033[5 q")))
          (add-hook 'evil-insert-state-exit-hook  (lambda () (send-string-to-terminal "\033[2 q")))))
+
+;;. Evil numbers
+(use-package evil-numbers)
+(evil-define-key 'normal global-map (kbd "C-c a") 'evil-numbers/inc-at-pt)
+(evil-define-key 'normal global-map (kbd "C-c x") 'evil-numbers/dec-at-pt)
 
 ;;. Treemacs
 ;; This is a full-featured example config from the github readme. Most of these config options
@@ -447,19 +454,18 @@
   :config (nerd-icons-completion-mode)
   (add-hook 'marginalia-mode-hook #'nerd-icons-completion-marginalia-setup))
 
-
 ;;. All the Icons
-(use-package all-the-icons
-  :if (display-graphic-p)
-  :config
-  (unless (member "all-the-icons" (font-family-list))
-    (all-the-icons-install-fonts t)))
+;(use-package all-the-icons
+;  :if (display-graphic-p)
+;  :config
+;  (unless (member "all-the-icons" (font-family-list))
+;    (all-the-icons-install-fonts t)))
 
-(use-package all-the-icons-completion
-  :after (marginalia all-the-icons)
-  :hook (marginalia-mode . all-the-icons-completion-marginalia-setup)
-  :init
-  (all-the-icons-completion-mode))
+;(use-package all-the-icons-completion
+;  :after (marginalia all-the-icons)
+;  :hook (marginalia-mode . all-the-icons-completion-marginalia-setup)
+;  :init
+;  (all-the-icons-completion-mode))
 
 
 ;;. Key bindings and leader keys
@@ -495,10 +501,10 @@
     ;; Don't show an error because SPC b ESC is undefined, just abort
     "b <escape>" '(keyboard-escape-quit :which-key t)
     "bd"  'kill-current-buffer
-    
+
     ;; Comment line
     "/" '((lambda (n) (interactive "p") (save-excursion (comment-line n))) :which-key "comment line")))
-  
+
 
 ;; Which key, shows what keys do
 (use-package which-key
@@ -514,15 +520,15 @@
 (evil-define-key 'insert global-map (kbd "C-p") 'ace-window)
 
 (defun my-vterm-mode-setup ()
-  "Set up keybindings to work in vterm mode"
+  "Set up keybindings to work in vterm mode."
   (evil-define-key 'normal vterm-mode-map (kbd "C-p") 'ace-window)
   (evil-define-key 'visual vterm-mode-map (kbd "C-p") 'ace-window)
   (evil-define-key 'insert vterm-mode-map (kbd "C-p") 'ace-window)
-  (define-key vterm-mode-map (kbd "C-p") 'ace-window))
+  (define-key vterm-mode-map (kbd "C-p") 'ace-window)
+  (define-key vterm-mode-map (kbd "<deletechar>") 'vterm-send-delete))
 
 (add-hook 'vterm-mode-hook 'my-vterm-mode-setup)
 (global-set-key (kbd "C-p") 'ace-window)
-  
 
 ;;. Minibuffer
 ;;.. Marginalia
@@ -533,7 +539,7 @@
   :custom
   (marginalia-max-relative-age 0)
   (marginalia-align 'left)
-  
+
   :init
   (marginalia-mode))
 
@@ -552,11 +558,10 @@
                                 vertico-directory
                                 vertico-multiform
                                 vertico-unobtrusive))
-                                
+
   :general
   (:keymaps '(normal insert visual motion)
    "M-." #'vertico-repeat)
-   
   (:keymaps 'vertico-map
    "<tab>" #'vertico-insert ; Set manually otherwise setting `vertico-quick-insert' overrides this
    "?" #'minibuffer-completion-help
@@ -575,10 +580,10 @@
    "M-R" #'vertico-multiform-reverse
    "M-U" #'vertico-multiform-unobtrusive
    "C-l" #'kb/vertico-multiform-flat-toggle)
-   
+
   :hook ((rfn-eshadow-update-overlay . vertico-directory-tidy) ; Clean up file path when typing
          (minibuffer-setup . vertico-repeat-save)) ; Make sure vertico state is saved
-         
+
   :custom
   (vertico-count 10)
   (vertico-resize nil)
@@ -595,14 +600,14 @@
      (library  indexed)
      (org-roam-node indexed)
      (t reverse)))
-     
+
   (vertico-multiform-commands
    '(("flyspell-correct-*" grid reverse)
      (org-refile grid reverse indexed)
      (consult-yank-pop indexed)
      (consult-flycheck)
      (consult-lsp-diagnostics)))
-     
+
   :init
   (defun kb/vertico-multiform-flat-toggle ()
     "Toggle between flat and reverse."
@@ -685,7 +690,14 @@
   :init
   (setq corfu-popupinfo-delay 0.2)
   (corfu-popupinfo-mode)
-  (global-corfu-mode))
+  (global-corfu-mode)
+
+  :config
+  (define-key corfu-map (kbd "<escape>") #'corfu-quit)
+  (define-key corfu-map (kbd "RET") nil)
+  (define-key corfu-map (kbd "<return>") nil)
+  (define-key corfu-map (kbd "TAB") #'corfu-complete)
+  (define-key corfu-map (kbd "<tab>") #'corfu-complete))
 
 ;;.. Use Dabbrev with Corfu!
 (use-package dabbrev
@@ -759,7 +771,6 @@
   (general-nmap
     "<escape>" #'transient-quit-one))
 
-
 ;;. PDF tools
 (use-package pdf-tools
   :after (evil)
@@ -784,12 +795,10 @@
     (set (make-local-variable 'evil-emacs-state-cursor) (list nil)))
   (blink-cursor-mode -1))
 
-
 ;;. Rainbow delimiters
 (use-package rainbow-delimiters
   :hook
   (lisp-mode . rainbow-delimiters-mode))
-
 
 ;;. Parinfer
 (use-package parinfer-rust-mode
@@ -806,7 +815,7 @@
   (define-key parinfer-rust-mode-map (kbd "C-c C-n") 'custom-parinfer/cycle-modes))
 
 (defun custom-parinfer/cycle-modes ()
-  "Cycles through the parinfer modes: paren -> indent -> smart (-> paren...)" 
+  "Cycles through the parinfer modes: paren -> indent -> smart (-> paren...)"
     (interactive)
     (cond
      ((string= parinfer-rust--mode "paren")
@@ -818,7 +827,6 @@
      (t
       (message "Switching to paren mode")
       (parinfer-rust--switch-mode "paren"))))
-
 
 ;;. Smartparens
 ;;.. Smartparens setup
@@ -838,15 +846,12 @@
               ("C-M-d" . sp-down-sexp)
               ("C-M-u" . sp-backward-up-sexp)
               ("C-M-a" . sp-backward-down-sexp)
-              ("C-M-t" . sp-transpose-sexp)
               ("C-M-s" . sp-splice-sexp)
-              ("C-c (" . sp-wrap-round)
-              ("C-c [" . sp-wrap-square)
-              ("C-c {" . sp-wrap-curly)
-              ("C-M-<backspace>" . sp-backward-kill-sexp)
-              ("C-M-<delete>" . sp-kill-sexp)
-              ("<M-backspace>" . sp-backward-unwrap-sexp)
+              ("M-(" . sp-wrap-round)
+              ("M-[" . sp-wrap-square)
+              ("M-{" . sp-wrap-curly)
               ("<M-delete>" . sp-unwrap-sexp)
+              ("<M-backspace>" . sp-backward-unwrap-sexp)
               ("s-<right>" . sp-forward-slurp-sexp)
               ("s-<left>" . sp-forward-barf-sexp)
               ("M-<left>" . sp-backward-slurp-sexp)
@@ -891,57 +896,22 @@
   (define-key smartparens-mode-map (kbd "C-M-s-t") 'sp-custom/drag-preceding-sexp-backward)
   (define-key smartparens-mode-map (kbd "C-M-y") 'sp-custom/drag-sexp-forward)
   (define-key smartparens-mode-map (kbd "C-M-s-y") 'sp-custom/drag-sexp-backward))
-  
-
-;; (use-package paredit
-;;   :defer t
-;;   :init
-;;   (add-hook 'emacs-lisp-mode-hook 'paredit-mode)
-;;   (add-hook 'clojure-mode-hook 'paredit-mode)
-;;   :config
-;;   (define-key paredit-mode-map (kbd "C-c k") 'paredit-copy-as-kill))
-
-;;. Lispy
-;; (use-package lispy
-;;   :hook
-;;   (emacs-lisp-mode . lispy-mode)
-;;   (lisp-mode . lispy-mode)
-;;   (scheme-mode . lispy-mode)
-;;   (racket-mode . lispy-mode)
-;;   (clojure-mode . lispy-mode)
-;;   (clojurescript-mode . lispy-mode)
-;;   (clojurec-mode . lispy-mode)
-;;   (hy-mode . lispy-mode)
-;;   (lfe-mode . lispy-mode)
-;;   (scheme-mode . lispy-mode)
-;;   (lisp-mode . lispy-mode)
-;;   (ielm-mode . lispy-mode)
-;;   (eval-expression-minibuffer-setup . lispy-mode)
-;;   :config
-;;   (setq lispy-close-quotes-at-end-p t))
-
-;; (use-package lispyville
-;;   :hook
-;;   (lispy-mode . lispyville-mode)
-;;   :config
-;;   (lispyville-set-key-theme
-;;    '((operators normal)
-;;      c-w
-;;      (prettify insert)
-;;      (atom-movement normal visual)
-;;      slurp/barf-lispy
-;;      additional
-;;      additional-insert)))
 
 ;;. Shell (vterm)
 (use-package vterm)
-
 
 ;;. LSP and languages
 (use-package eglot
   :config
   (define-key eglot-mode-map
               (kbd "C-c C-t") #'eldoc-print-current-symbol-info)
+  (setq eglot-code-action-indicator
+        (if (display-graphic-p) "\U0001F4A1" "●"))
+  (add-hook 'after-make-frame-functions
+            (lambda (frame)
+              (with-selected-frame frame
+                (setq eglot-code-action-indicator
+                      (if (display-graphic-p frame) "\U0001F4A1" "●")))))
   :hook
   ((tuareg-mode . eglot-ensure)))
   ;; :config
@@ -963,7 +933,9 @@
     (elisp "https://github.com/Wilfred/tree-sitter-elisp")
     (go "https://github.com/tree-sitter/tree-sitter-go")
     (go-mod "https://github.com/camdencheek/tree-sitter-go-mod")
+    (groovy "https://github.com/mcwhittemore/tree-sitter-groovy")
     (html "https://github.com/tree-sitter/tree-sitter-html")
+    (java "https://github.com/tree-sitter/tree-sitter-java.git")
     (js . ("https://github.com/tree-sitter/tree-sitter-javascript" "master" "src"))
     (json "https://github.com/tree-sitter/tree-sitter-json")
     (lua "https://github.com/Azganoth/tree-sitter-lua")
@@ -988,14 +960,8 @@
 (use-package micromamba
   :straight t)
 
-
-;;.. Elixir
-(use-package elixir-ts-mode)
-
-
 ;;.. Sly
 (load (expand-file-name "~/.roswell/helper.el"))
-
 (use-package sly
   :defer t
   :config
@@ -1005,36 +971,34 @@
           (ccl ("ros" "-Q" "run" "-L" "ccl-bin"))))
   (setf sly-default-lisp 'roswell))
 
-
 ;;.. ESS
 (use-package ess
   :init (require 'ess-site))
 
+;;.. Nextflow
+(use-package groovy-mode
+  :straight t
+  :mode "\\.groovy\\'")
 
-;;.. Ocaml
-(use-package tuareg
-  :mode (("\\.ocamlinit\\'" . tuareg-mode)))
+(use-package nextflow-mode
+  :straight (:host github :repo "emiller88/nextflow-mode")
+  :mode "\\.nf\\'")
 
-(use-package merlin
-  :config
-  (add-hook 'tuareg-mode-hook #'merlin-mode))
-
-(use-package utop
-  :config
-  (add-hook 'tuareg-mode-hook #'utop-minor-mode))
-
+(with-eval-after-load 'tree-sitter
+  (add-to-list 'tree-sitter-major-mode-language-alist
+               '(nextflow-mode . groovy)))
 
 ;;.. Rust
 (use-package rust-mode
   :hook
   (rust-mode . eglot-ensure)
   :init
-  (setq rust-mode-treesitter-derive t))
+  (setq rust-mode-treesitter-derive t)
+  (setq rust-format-on-save t))
 
 (use-package flymake-clippy
   :hook
   (rust-mode . flymake-clippy-setup-backend))
-
 
 ;;.. Racket
 (use-package racket-mode
@@ -1048,7 +1012,6 @@
   :config (add-hook 'ob-racket-pre-runtime-library-load-hook
                     #'ob-racket-raco-make-runtime-library)
   :straight (:host github :repo "hasu/emacs-ob-racket"))
-
 
 ;;.. Clojure
 (use-package clojure-mode
@@ -1065,7 +1028,6 @@
   :config
   (breadcrumb-mode 1))
 
-
 ;;. Copilot
 (use-package copilot
   :straight (:repo "copilot-emacs/copilot.el" :host github :files ("*.el" "dist"))
@@ -1075,10 +1037,7 @@
          ("M-;" . 'copilot-accept-completion)
          ("M-s-]" . 'copilot-next-completion)
          ("M-s-[" . 'copilot-previous-completion)
-         :map copilot-completion-map)
-  :config
-  ;; Automatically install Copilot server if missing
-  (copilot-install-server))
+         :map copilot-completion-map))
 
 (use-package copilot-chat
   :straight (:host github :repo "chep/copilot-chat.el" :files ("*.el"))
@@ -1093,7 +1052,7 @@
 ;; 3: Launch an interactive R jobs from this shell:
 ;;    bsubmem MMMM -Is R (--no-readline) [optionally now use C-\ to detach]
 ;; 4: In emacs, run M-x R-remote to connect to the session
-(defvar R-remote-host "farm22")
+(defvar R-remote-host "farm22-head2")
 (defvar R-remote-session "R")
 (defvar R-remote-directory "~")
 (defun R-remote (&optional remote-host session directory)
@@ -1102,19 +1061,32 @@
                 (read-from-minibuffer "R remote host: " R-remote-host)
                 (read-from-minibuffer "R remote session: " R-remote-session)
                 (read-from-minibuffer "R remote directory: " R-remote-directory)))
-  (pop-to-buffer (make-comint (concat "remote-" session)
-                              "ssh" nil "-t" "-t" remote-host
-                              "cd" directory ";"
-                              "/nfs/dog_n_devil/kevin/gentoo/usr/bin/dtach" "-A" (concat ".dtach-" session)
-                              "-z" "-E" "-r" "none"
-                              inferior-R-program-name "--no-readline"
-                              inferior-R-args))
-  (ess-remote (process-name (get-buffer-process (current-buffer))) "R")
-  (setq comint-process-echoes t))
+  (let ((remote-cmd
+         (format "cd %s; /nfs/dog_n_devil/kevin/gentoo/usr/bin/dtach -A .dtach-%s -z -E -r none %s --no-readline %s"
+                 directory
+                 session
+                 inferior-R-program-name
+                 inferior-R-args))
+        (bufname (concat "*remote-" session "*")))
+
+    (let ((remote-cmd-quoted (format "bash -lc %S" remote-cmd)))
+      ;; --- Debug output ---
+      (message "R-remote: connecting to host: %s" remote-host)
+      (message "R-remote: running remote command: %s" remote-cmd-quoted)
+      (sit-for 0.2)  ;; give messages a chance to print before comint output
+
+      (pop-to-buffer
+       (make-comint-in-buffer bufname bufname
+                              "ssh" nil "-t" "-t" remote-host remote-cmd))
+      (ess-remote (process-name (get-buffer-process (current-buffer))) "R")
+      (setq comint-process-echoes t))))
+
 
 ;;. Tramp
-(setq tramp-verbose 6)
-(setq tramp-debug-buffer t)
-(setq tramp-debug-to-file t)
+(setq tramp-verbose 1)
+(setq tramp-debug-buffer nil)
+(setq tramp-debug-to-file nil)
+(setq epg-pinentry-mode 'loopback)
+(setq tramp-completion-use-auth-sources nil)
 (with-eval-after-load 'tramp
   (add-to-list 'tramp-remote-path 'tramp-own-remote-path))
