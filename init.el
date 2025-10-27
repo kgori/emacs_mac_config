@@ -973,7 +973,16 @@
 
 ;;.. ESS
 (use-package ess
-  :init (require 'ess-site))
+  :init (require 'ess-site)
+  :config
+  (defun my/ess-local-keybindings ()
+    "Buffer local keybindings for ESS."
+    (local-set-key (kbd "C-c C-d") 'ess-eval-line-and-step))
+  (defun my/ess-r-mode-start-eglot ()
+    "Start eglot in ESS R mode."
+    (eglot-ensure))
+  (add-hook 'ess-mode-hook 'my/ess-local-keybindings)
+  (add-hook 'ess-r-mode-hook 'my/ess-r-mode-start-eglot))
 
 ;;.. Nextflow
 (use-package groovy-mode
