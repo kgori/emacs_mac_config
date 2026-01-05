@@ -443,6 +443,7 @@
 
 
 ;;. Nerd icons
+;; Don't forget to install the glyphs with (nerd-icons-install-fonts)
 (use-package nerd-icons)
 
 (use-package nerd-icons-dired
@@ -455,17 +456,18 @@
   (add-hook 'marginalia-mode-hook #'nerd-icons-completion-marginalia-setup))
 
 ;;. All the Icons
-;(use-package all-the-icons
-;  :if (display-graphic-p)
-;  :config
-;  (unless (member "all-the-icons" (font-family-list))
-;    (all-the-icons-install-fonts t)))
+;; Don't forget to install the glyphs with (all-the-icons-install-fonts)
+(use-package all-the-icons
+  :if (display-graphic-p)
+  :config
+  (unless (member "all-the-icons" (font-family-list))
+    (all-the-icons-install-fonts t)))
 
-;(use-package all-the-icons-completion
-;  :after (marginalia all-the-icons)
-;  :hook (marginalia-mode . all-the-icons-completion-marginalia-setup)
-;  :init
-;  (all-the-icons-completion-mode))
+(use-package all-the-icons-completion
+  :after (marginalia all-the-icons)
+  :hook (marginalia-mode . all-the-icons-completion-marginalia-setup)
+  :init
+  (all-the-icons-completion-mode))
 
 
 ;;. Key bindings and leader keys
@@ -795,12 +797,13 @@
     (set (make-local-variable 'evil-emacs-state-cursor) (list nil)))
   (blink-cursor-mode -1))
 
-;;. Rainbow delimiters
+;;. Working with lisp
+;;.. Rainbow delimiters
 (use-package rainbow-delimiters
   :hook
   (lisp-mode . rainbow-delimiters-mode))
 
-;;. Parinfer
+;;.. Parinfer
 (use-package parinfer-rust-mode
   :hook ((emacs-lisp-mode . parinfer-rust-mode)
          (clojure-mode . parinfer-rust-mode)
@@ -828,12 +831,13 @@
       (message "Switching to paren mode")
       (parinfer-rust--switch-mode "paren"))))
 
-;;. Smartparens
 ;;.. Smartparens setup
 (defun my-enable-evil-move-beyond-eol ()
+  "To be used as a hook when activating smartparens mode in a buffer"
   (setq-local evil-move-beyond-eol t))
 
 (defun my-disable-evil-move-beyond-eol ()
+  "To be used as a hook when deactivating smartparens mode"
   (setq-local evil-move-beyond-eol nil))
 
 (use-package smartparens
@@ -901,6 +905,7 @@
 (use-package vterm)
 
 ;;. LSP and languages
+;;.. eglot
 (use-package eglot
   :config
   (define-key eglot-mode-map
@@ -917,6 +922,7 @@
   ;; :config
   ;; (add-to-list 'eglot-server-programs '(rust-mode . ("rust-analyzer"))))
 
+;;.. tree-sitter
 (use-package tree-sitter
   :config
   (global-tree-sitter-mode)
